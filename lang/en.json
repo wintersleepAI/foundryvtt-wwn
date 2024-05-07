@@ -165,6 +165,7 @@
   "WWN.SystemStrainMax": "Maximum System Strain",
 
   "WWN.movement.base": "Movement Rate",
+  "WWN.movement.med": "Movement",
   "WWN.movement.short": "MOV",
   "WWN.movement.monsterShort": "Move",
   "WWN.movement.long": "Movement (ft)",
