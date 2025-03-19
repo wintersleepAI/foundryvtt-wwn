@@ -2,7 +2,6 @@ import { WwnActorSheet } from "./actor-sheet.js";
 import { WwnCharacterModifiers } from "../dialog/character-modifiers.js";
 import { WwnAdjustCurrency } from "../dialog/adjust-currency.js";
 import { WwnCharacterCreator } from "../dialog/character-creation.js";
-import insertionSort from "../insertionSort.js";
 
 /**
  * Extend the basic ActorSheet with some very simple modifications
@@ -71,53 +70,43 @@ export class WwnActorSheetCharacter extends WwnActorSheet {
 
     // Sort each level
     Object.keys(sortedSpells).forEach((level) => {
-      let list = insertionSort(sortedSpells[level], "name");
-      list = insertionSort(list, "system.class");
-      sortedSpells[level] = list;
+      sortedSpells[level].sort((a, b) => a.name > b.name ? 1 : -1);
     });
 
     data.slots = {
       used: slots,
     };
 
-     // Sort arts by class
-  let sortedArts = {};
-  for (var i = 0; i < arts.length; i++) {
-    let source = arts[i].system.source;
-    if (!sortedArts[source]) sortedArts[source] = [];
-    sortedArts[source].push(arts[i]);
-  }
+    // Sort arts by class
+    let sortedArts = {};
+    for (var i = 0; i < arts.length; i++) {
+      let source = arts[i].system.source;
+      if (!sortedArts[source]) sortedArts[source] = [];
+      sortedArts[source].push(arts[i]);
+    }
 
-  // Sort each class
-  Object.keys(sortedArts).forEach(source => {
-    let list = insertionSort(sortedArts[source], "name");
-    sortedArts[source] = list;
-  });
+    // Sort each class
+    Object.keys(sortedArts).forEach(source => {
+      sortedArts[source].sort((a, b) => a.name > b.name ? 1 : -1);
+    });
 
     // Divide skills into primary and secondary
-    const primarySkills = insertionSort(
-      skills.filter((skill) => !skill.system.secondary),
-      "name"
-    );
-    const secondarySkills = insertionSort(
-      skills.filter((skill) => skill.system.secondary),
-      "name"
-    );
+    const primarySkills = skills.filter((skill) => !skill.system.secondary)
+      .sort((a, b) => a.name > b.name ? 1 : -1);
+    const secondarySkills = skills.filter((skill) => skill.system.secondary)
+      .sort((a, b) => a.name > b.name ? 1 : -1);
 
     // Assign and return
     data.owned = {
-      items: insertionSort(items, "name"),
-      armors: insertionSort(armors, "name"),
-      abilities: insertionSort(abilities, "name"),
-      weapons: insertionSort(weapons, "name"),
+      items: items.sort((a, b) => a.name > b.name ? 1 : -1),
+      armors: armors.sort((a, b) => a.name > b.name ? 1 : -1),
+      abilities: abilities.sort((a, b) => a.name > b.name ? 1 : -1),
+      weapons: weapons.sort((a, b) => a.name > b.name ? 1 : -1),
       arts: sortedArts,
-      foci: insertionSort(foci, "name"),
+      foci: foci.sort((a, b) => a.name > b.name ? 1 : -1),
       skills: [...primarySkills, ...secondarySkills],
       spells: sortedSpells
     };
-
-    // Store skill names for retrieval by weapons
-    this.actor.system.skillNames = data.owned.skills.map(skill => skill.name);
   }
 
   generateScores() {
@@ -140,12 +129,16 @@ export class WwnActorSheetCharacter extends WwnActorSheet {
    */
   async getData() {
     const data = super.getData();
+    // Prepare owned items
+    this._prepareItems(data);
 
     data.config.initiative = game.settings.get("wwn", "initiative") != "group";
     data.config.showMovement = game.settings.get("wwn", "showMovement");
     data.config.currencyTypes = game.settings.get("wwn", "currencyTypes");
+    data.config.replaceStrainWithWounds = game.settings.get("wwn", "replaceStrainWithWounds");
+    data.config.xpPerChar = game.settings.get("wwn", "xpPerChar");
+    data.config.medRange = game.settings.get("wwn", "medRange");
 
-    this._prepareItems(data);
     data.enrichedBiography = await TextEditor.enrichHTML(
       this.object.system.details.biography,
       { async: true }
@@ -191,7 +184,7 @@ export class WwnActorSheetCharacter extends WwnActorSheet {
     });
   }
 
-  async _chooseItemType(choices = ["focus", "ability"]) {
+  async _chooseItemType(choices = { focus: "focus", ability: "ability" }) {
     let templateData = { types: choices },
       dlg = await renderTemplate(
         "systems/wwn/templates/items/entity-create.html",
@@ -356,7 +349,7 @@ export class WwnActorSheetCharacter extends WwnActorSheet {
       const li = $(ev.currentTarget).parents(".item");
       const item = this.actor.items.get(li.data("itemId"));
       await item.update({
-        data: {
+        system: {
           equipped: !item.system.equipped,
         },
       });
@@ -366,7 +359,7 @@ export class WwnActorSheetCharacter extends WwnActorSheet {
       const li = $(ev.currentTarget).parents(".item");
       const item = this.actor.items.get(li.data("itemId"));
       await item.update({
-        data: {
+        system: {
           prepared: !item.system.prepared,
         },
       });
@@ -376,7 +369,7 @@ export class WwnActorSheetCharacter extends WwnActorSheet {
       const li = $(ev.currentTarget).parents(".item");
       const item = this.actor.items.get(li.data("itemId"));
       await item.update({
-        data: {
+        system: {
           stowed: !item.system.stowed,
         },
       });
@@ -410,28 +403,31 @@ export class WwnActorSheetCharacter extends WwnActorSheet {
         // Check if char has sufficient level
         if (rank > 0) {
           const lvl = this.actor.system.details.level;
-          if (rank == 1 && lvl < 3) {
-            ui.notifications?.error(
-              "Must be at least level 3 (edit manually to override)"
-            );
-            return;
-          } else if (rank == 2 && lvl < 6) {
-            ui.notifications?.error(
-              "Must be at least level 6 (edit manually to override)"
-            );
-            return;
-          } else if (rank == 3 && lvl < 9) {
-            ui.notifications?.error(
-              "Must be at least level 9 (edit manually to override)"
-            );
-            return;
-          } else if (rank > 3) {
-            ui.notifications?.error("Cannot auto-level above 4");
-            return;
+          if (!game.settings.get("wwn", "noSkillLevelReq")) {
+            if (rank == 1 && lvl < 3) {
+              ui.notifications?.error(
+                "Must be at least level 3 (edit manually to override)"
+              );
+              return;
+            } else if (rank == 2 && lvl < 6) {
+              ui.notifications?.error(
+                "Must be at least level 6 (edit manually to override)"
+              );
+              return;
+            } else if (rank == 3 && lvl < 9) {
+              ui.notifications?.error(
+                "Must be at least level 9 (edit manually to override)"
+              );
+              return;
+            } else if (rank > 3) {
+              ui.notifications?.error("Cannot auto-level above 4");
+              return;
+            }
           }
         }
         // check costs and update if points available
-        const skillCost = rank + 2;
+        const flatCost = game.settings.get("wwn", "flatSkillCost");
+        const skillCost = flatCost ? 1 : rank + 2;
         const skillPointsAvail = this.actor.system.skills.unspent;
         if (skillCost > skillPointsAvail) {
           ui.notifications.error(

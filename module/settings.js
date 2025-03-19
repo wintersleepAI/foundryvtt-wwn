@@ -17,6 +17,7 @@ export const registerSettings = function () {
     scope: "world",
     type: String,
     config: true,
+    reload: true,
     choices: {
       individual: "WWN.Setting.InitiativeIndividual",
       group: "WWN.Setting.InitiativeGroup",
@@ -31,8 +32,11 @@ export const registerSettings = function () {
     scope: "world",
     type: String,
     config: true,
+    reload: true,
     choices: {
       keep: "WWN.Setting.InitiativeKeep",
+      reroll: "WWN.Setting.InitiativeReroll",
+      reset: "WWN.Setting.InitiativeReset",
     }
   });
 
@@ -126,6 +130,16 @@ export const registerSettings = function () {
     requiresReload: true
   });
 
+  game.settings.register("wwn", "xpPerChar", {
+    name: "Per-Character XP",
+    hint: "Enable manually setting XP for each character, rather than using a global value.",
+    default: false,
+    scope: "world",
+    type: Boolean,
+    config: true,
+    requiresReload: true
+  });
+
   game.settings.register("wwn", "currencyTypes", {
     name: game.i18n.localize("WWN.items.Currency"),
     hint: game.i18n.localize("WWN.items.CurrencyHint"),
@@ -138,6 +152,91 @@ export const registerSettings = function () {
       currencybx: "WWN.Setting.CurrencyBX",
     },
     requiresReload: true
+  });
+
+  game.settings.register("wwn", "useGoldStandard", {
+    name: "Gold Standard",
+    hint: "Use a gold standard for currency, rather than a silver standard.",
+    default: false,
+    scope: "world",
+    type: Boolean,
+    config: true,
+    requiresReload: false
+  });
+
+  game.settings.register("wwn", "attributeModType", {
+    name: "Attribute Modifiers",
+    hint: "Whether attribute modifiers should be calculated using the WWN or B/X method.",
+    default: "wwn",
+    scope: "world",
+    type: String,
+    config: true,
+    choices: {
+      wwn: "WWN",
+      bx: "B/X",
+    },
+    requiresReload: false
+  });
+
+  game.settings.register("wwn", "removeLevelSave", {
+    name: "Remove Level Save Bonus",
+    hint: "Remove a character's level from the calculation used to determine saves. This can be useful if you want to configure a manual value using only Base Save in Tweaks and attribute modifiers.",
+    default: false,
+    scope: "world",
+    type: Boolean,
+    config: true,
+    requiresReload: false
+  });
+
+  game.settings.register("wwn", "replaceStrainWithWounds", {
+    name: "Replace Strain with Wounds",
+    hint: "Removes System Strain from the sheet and replaces it with a tracker for Injuries and Wounds from the Death and Dismemberment rules published by Goblin Punch. Additionally, this enables automatic calculation of such injuries, should damage reduce a character's HP below 0.",
+    default: false,
+    scope: "world",
+    type: Boolean,
+    config: true,
+    requiresReload: false
+  });
+
+  game.settings.register("wwn", "roundWeight", {
+    name: "Round Weight Up",
+    hint: "Round weight up to the nearest whole number, to most closely match WWN rules. If disabled, weight is not rounded.",
+    default: true,
+    scope: "world",
+    type: Boolean,
+    config: true,
+    requiresReload: true
+  });
+
+  game.settings.register("wwn", "flatSkillCost", {
+    name: "Flat Skill Cost",
+    hint: "Skills cost a flat 1 point to purchase, rather than scaling with level.",
+    default: false,
+    scope: "world",
+    type: Boolean,
+    config: true,
+    requiresReload: false
+  });
+
+  game.settings.register("wwn", "noSkillLevelReq", {
+    name: "No Skill Level Requirement",
+    hint: "Remove the level requirement for purchasing skills.",
+    default: false,
+    scope: "world",
+    type: Boolean,
+    config: true,
+    requiresReload: false
+  });
+
+  game.settings.register("wwn", "medRange", {
+    name: "Medium Range",
+    hint: "Add a box for medium range to weapons.",
+    default: false,
+    scope: "world",
+    type: Boolean,
+    config: true,
+    requiresReload: true
+
   });
 
   game.settings.register("wwn", "systemMigrationVersion", {

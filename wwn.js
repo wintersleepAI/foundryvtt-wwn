@@ -13,10 +13,13 @@ import * as chat from "./module/chat.js";
 import * as treasure from "./module/treasure.js";
 import * as macros from "./module/macros.js";
 import * as party from "./module/party.js";
-import { WwnCombat } from "./module/combat.js";
 import * as migrations from "./module/migration.js";
-import { WwnItemProxy } from "./module/item/item-proxy.js";
-// import { WwnActorProxy } from "./module/actor/actor-proxy.js";
+// Combat
+import { WWNGroupCombat } from "./module/combat/combat-group.js";
+import { WWNGroupCombatant } from "./module/combat/combatant-group.js";
+import { WWNCombat } from "./module/combat/combat.js";
+import { WWNCombatant } from "./module/combat/combatant.js";
+import { WWNCombatTab } from "./module/combat/sidebar.js";
 
 /* -------------------------------------------- */
 /*  Foundry VTT Initialization                  */
@@ -28,7 +31,7 @@ Hooks.once("init", async function () {
    * @type {String}
    */
   CONFIG.Combat.initiative = {
-    formula: "1d8 + @initiative.value",
+    formula: "@initiativeRoll + @init",
     decimals: 2,
   };
 
@@ -43,9 +46,21 @@ Hooks.once("init", async function () {
 
   // Register custom system settings
   registerSettings();
+  const isGroupInitiative = game.settings.get(game.system.id, "initiative") === "group";
+  if (isGroupInitiative) {
+    CONFIG.Combat.documentClass = WWNGroupCombat;
+    CONFIG.Combatant.documentClass = WWNGroupCombatant;
+    CONFIG.Combat.initiative = { decimals: 2, formula: "@initiativeRoll + @init" }
+  } else {
+    CONFIG.Combat.documentClass = WWNCombat;
+    CONFIG.Combatant.documentClass = WWNCombatant;
+    CONFIG.Combat.initiative = { decimals: 2, formula: "@initiativeRoll + @init" }
+  }
+
+  CONFIG.ui.combat = WWNCombatTab;
 
   CONFIG.Actor.documentClass = WwnActor;
-  CONFIG.Item.documentClass = WwnItemProxy;
+  CONFIG.Item.documentClass = WwnItem;
 
   // Register sheet application classes
   Actors.unregisterSheet("core", ActorSheet);
@@ -93,12 +108,12 @@ Hooks.once("ready", async () => {
   );
 
   // Check migration
-  if ( !game.user.isGM ) return;
+  if (!game.user.isGM) return;
   const currentVersion = game.settings.get("wwn", "systemMigrationVersion");
   const NEEDS_MIGRATION_VERSION = "1.1.2";
   const totalDocuments = game.actors.size + game.scenes.size + game.items.size;
-  if ( !currentVersion && totalDocuments === 0 ) return game.settings.set("wwn", "systemMigrationVersion", game.system.version);
-  const needsMigration = !currentVersion || isNewerVersion(NEEDS_MIGRATION_VERSION, currentVersion);
+  if (!currentVersion && totalDocuments === 0) return game.settings.set("wwn", "systemMigrationVersion", game.system.version);
+  const needsMigration = foundry.utils.isNewerVersion(NEEDS_MIGRATION_VERSION, currentVersion);
 
   if (needsMigration) {
     migrations.migrateWorld();
@@ -121,23 +136,11 @@ Hooks.on("renderSidebarTab", async (object, html) => {
     const template = "systems/wwn/templates/chat/license.html";
     const rendered = await renderTemplate(template);
     gamesystem.find(".system").append(rendered);
-    
+
   }
 });
 
-Hooks.on("preCreateCombatant", (combat, data, options, id) => {
-  let init = game.settings.get("wwn", "initiative");
-  if(init === "group") {
-    WwnCombat.addCombatant(combat, data, options, id);
-  }
-});
-
-Hooks.on("updateCombatant", WwnCombat.updateCombatant);
-Hooks.on("renderCombatTracker", WwnCombat.format);
-Hooks.on("preUpdateCombat", WwnCombat.preUpdateCombat);
-Hooks.on("getCombatTrackerEntryContext", WwnCombat.addContextEntry);
-Hooks.on("preCreateToken", WwnCombat.preCreateToken);
-
+Hooks.on("preCreateToken", WWNCombat.preCreateToken);
 Hooks.on("renderChatLog", (app, html, data) => WwnItem.chatListeners(html));
 Hooks.on("getChatLogEntryContext", chat.addChatMessageContextOptions);
 Hooks.on("renderChatMessage", chat.addChatMessageButtons);
